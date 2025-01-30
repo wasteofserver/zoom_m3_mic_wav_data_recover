@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 public class Main {
 
     final int CHUNK_SIZE = 262144;
-    final String filename = "000.wav";
+    //    final String filename = "001.wav";
     int sampleRate = 48000;      // 44.1 kHz
     int chanelCount = 2;             // mic records in stereo
     int bitRate = 32;                   // 32-bit float recording
@@ -22,10 +22,15 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println("Main method");
-        Main main = new Main();
+        for (int i = 0; i < 43; i++) {
+            if (i == 10 || i == 11 || i == 12 || i == 13 || i == 27 || i == 34) continue;
+            String s = String.format("%03d.wav", i);
+            System.out.println(s);
+            new Main(s);
+        }
     }
 
-    public Main() {
+    public Main(String filename) {
         System.out.println("Main constructor");
         System.out.printf("Sample rate: %d\n", sampleRate);
         System.out.printf("Chanel count: %d\n", chanelCount);
@@ -33,7 +38,7 @@ public class Main {
         System.out.printf("Block align: %d\n", blockAlign);
         System.out.printf("Bytes per second: %d\n", bytesPerSecond);
 
-        byte[] fileData = readFileFromFileSystem();
+        byte[] fileData = readFileFromFileSystem(filename);
         int lastOffset = -1;
         for (int i = 0; i < fileData.length; i++) {
             if (fileData[i + 0] == dataSequence[0] && fileData[i + 1] == dataSequence[1] && fileData[i + 2] == dataSequence[2] && fileData[i + 3] == dataSequence[3]) {
@@ -52,7 +57,7 @@ public class Main {
         byte[] fileB = getBytesChunked(dataChunk, CHUNK_SIZE, CHUNK_SIZE);
 
         try {
-            EmptyWave.createEmptyWaveFile(48000, (short) 32, (short) 2,  new File("empty.wav"), fileA);
+            EmptyWave.createEmptyWaveFile(48000, (short) 32, (short) 2, new File(filename + "_without_broadcast_format.wav"), fileA);
             if (true) return;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -63,12 +68,12 @@ public class Main {
         System.arraycopy(header, 0, fileAWithHeader, 0, header.length);
         System.arraycopy(fileA, 0, fileAWithHeader, header.length, fileA.length);
 
-        try {
-            Files.write(Paths.get("src/main/resources/" + filename + "_reduced_A.wav"), fileAWithHeader);
+//        try {
+//            Files.write(Paths.get("src/main/resources/" + filename + "_reduced_A.wav"), fileAWithHeader);
 //            Files.write(Paths.get("src/main/resources/" + filename + "_reduced_B.wav"), fileB);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 
     }
 
@@ -91,7 +96,7 @@ public class Main {
         return true;
     }
 
-    byte[] readFileFromFileSystem() {
+    byte[] readFileFromFileSystem(String filename) {
         Path path = Paths.get("src/main/resources/" + filename);
         try {
             byte[] data = Files.readAllBytes(path);
