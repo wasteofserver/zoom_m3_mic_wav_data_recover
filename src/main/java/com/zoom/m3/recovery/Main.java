@@ -1,5 +1,6 @@
 package com.zoom.m3.recovery;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +50,13 @@ public class Main {
 
         byte[] fileA = getBytesChunked(dataChunk, CHUNK_SIZE, 0);
         byte[] fileB = getBytesChunked(dataChunk, CHUNK_SIZE, CHUNK_SIZE);
+
+        try {
+            EmptyWave.createEmptyWaveFile(48000, (short) 32, (short) 2,  new File("empty.wav"), fileA);
+            if (true) return;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         byte[] header = RiffHeader.getHeader(fileA.length);
         byte[] fileAWithHeader = new byte[header.length + fileA.length];
