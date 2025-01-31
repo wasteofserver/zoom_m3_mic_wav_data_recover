@@ -1,6 +1,5 @@
 package com.zoom.m3.recovery;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,13 +20,14 @@ public class Main {
     byte[] dataSequence = new byte[]{0x64, 0x61, 0x74, 0x61};
 
     public static void main(String[] args) {
-        System.out.println("Main method");
-        for (int i = 0; i < 43; i++) {
-            if (i == 10 || i == 11 || i == 12 || i == 13 || i == 27 || i == 34) continue;
-            String s = String.format("%03d.wav", i);
-            System.out.println(s);
-            new Main(s);
-        }
+        new Main("000.wav");
+
+//        for (int i = 0; i < 43; i++) {
+//            if (i == 10 || i == 11 || i == 12 || i == 13 || i == 27 || i == 34) continue;
+//            String s = String.format("%03d.wav", i);
+//            System.out.println(s);
+//            new Main(s);
+//        }
     }
 
     public Main(String filename) {
@@ -39,6 +39,27 @@ public class Main {
         System.out.printf("Bytes per second: %d\n", bytesPerSecond);
 
         byte[] fileData = readFileFromFileSystem(filename);
+        byte[] dataChunk = getDataChunkOfRiffFile(fileData);
+
+        byte[] fileA = getBytesChunked(dataChunk, CHUNK_SIZE, 0);
+        byte[] fileB = getBytesChunked(dataChunk, CHUNK_SIZE, CHUNK_SIZE); // this will be the raw file
+
+        try {
+            byte[] output = RiffFile.createRiffFile(48000, (short) 32, (short) 2, fileA);
+            Files.write(Paths.get(filename + "_header_auto.wav"), output);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    /**
+     * Extract the data chunk from the RIFF file
+     *
+     * @param fileData the RIFF file as a byte array
+     * @return the data chunk as a byte array
+     */
+    private byte[] getDataChunkOfRiffFile(byte[] fileData) {
         int lastOffset = -1;
         for (int i = 0; i < fileData.length; i++) {
             if (fileData[i + 0] == dataSequence[0] && fileData[i + 1] == dataSequence[1] && fileData[i + 2] == dataSequence[2] && fileData[i + 3] == dataSequence[3]) {
@@ -46,55 +67,12 @@ public class Main {
                 System.out.println("Found data sequence at byte: " + i);
             }
         }
-
         lastOffset += 4 + 4; // skip the data sequence + 4 bytes for the chunk size
-
-        // we'll now capture all the data from last offset to the end of the file
         byte[] dataChunk = new byte[fileData.length - lastOffset];
         System.arraycopy(fileData, lastOffset, dataChunk, 0, fileData.length - lastOffset);
-
-        byte[] fileA = getBytesChunked(dataChunk, CHUNK_SIZE, 0);
-        byte[] fileB = getBytesChunked(dataChunk, CHUNK_SIZE, CHUNK_SIZE);
-
-        try {
-            EmptyWave.createEmptyWaveFile(48000, (short) 32, (short) 2, new File(filename + "_without_broadcast_format.wav"), fileA);
-            if (true) return;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        byte[] header = RiffHeader.getHeader(fileA.length);
-        byte[] fileAWithHeader = new byte[header.length + fileA.length];
-        System.arraycopy(header, 0, fileAWithHeader, 0, header.length);
-        System.arraycopy(fileA, 0, fileAWithHeader, header.length, fileA.length);
-
-//        try {
-//            Files.write(Paths.get("src/main/resources/" + filename + "_reduced_A.wav"), fileAWithHeader);
-//            Files.write(Paths.get("src/main/resources/" + filename + "_reduced_B.wav"), fileB);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-
+        return dataChunk;
     }
 
-    public static void compareChunks(byte[] data, int chunkSize) {
-        for (int i = 0; i <= data.length - chunkSize; i += chunkSize) {
-            for (int j = i + chunkSize; j <= data.length - chunkSize; j += chunkSize) {
-                if (compareChunk(data, i, j, chunkSize)) {
-                    System.out.println("Match found between chunks starting at " + i + " and " + j);
-                }
-            }
-        }
-    }
-
-    public static boolean compareChunk(byte[] data, int start1, int start2, int chunkSize) {
-        for (int k = 0; k < chunkSize; k++) {
-            if (data[start1 + k] != data[start2 + k]) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     byte[] readFileFromFileSystem(String filename) {
         Path path = Paths.get("src/main/resources/" + filename);
@@ -108,6 +86,7 @@ public class Main {
         }
         return null;
     }
+
 
     byte[] getBytesChunked(byte[] data, int chunkSize, int startAt) {
         int totalChunks = data.length / 2;
