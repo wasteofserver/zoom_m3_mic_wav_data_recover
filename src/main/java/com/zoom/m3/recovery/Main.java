@@ -46,7 +46,10 @@ public class Main {
 
         try {
             byte[] output = RiffFile.createRiffFile(48000, (short) 32, (short) 2, fileA);
-            Files.write(Paths.get(filename + "_header_auto.wav"), output);
+            Files.write(Paths.get(filename + "_header_auto_a.wav"), output);
+
+            byte[] output2 = RiffFile.createRiffFile(48000, (short) 32, (short) 2, fileB);
+            Files.write(Paths.get(filename + "_header_auto_b.wav"), output2);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
