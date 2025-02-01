@@ -1,6 +1,7 @@
 package com.zoom.m3.recovery;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +13,10 @@ public class ReadFromIso {
     final static private int BUFFER_SIZE = 8192 * 16;
 
     public static void main(String[] args) throws IOException {
+
+        // todo we can't store byte arrays larger than 2GB in memory so we must write them to disk
+        // todo we could do it directly in the split zoom
+
         // look for data blocks in the ISO file
         // when data block is found extract, check size, double it and see if it's valid, consider not valid if it has 16 bytes of 0
 
@@ -36,7 +41,7 @@ public class ReadFromIso {
                     if (buffer[i] == dataSequence[0] && buffer[i + 1] == dataSequence[1] && buffer[i + 2] == dataSequence[2] && buffer[i + 3] == dataSequence[3]) {
 
                         // next 4 bytes represent the size of the data block, as wav and raw and intertwined we need to double this
-                        int size = (buffer[i + 4] & 0xFF) |
+                        long size = (buffer[i + 4] & 0xFF) |
                                 ((buffer[i + 5] & 0xFF) << 8) |
                                 ((buffer[i + 6] & 0xFF) << 16) |
                                 ((buffer[i + 7] & 0xFF) << 24);
@@ -45,27 +50,30 @@ public class ReadFromIso {
                         long startBytes = totalBytesRead + i + 8; // remove "data" and size from the count
                         long endBytes = startBytes + size;
 
-                        if (!isDataBlockValid(startBytes, endBytes, filename)) {
-//                            System.out.printf("Data sequence at position %d reported size: %d block data: %02X %02X %02X %02X is %s %n",
-//                                    startBytes, size, buffer[i + 4], buffer[i + 5], buffer[i + 6], buffer[i + 7],
-//                                    isDataBlockValid(startBytes, endBytes, filename));
+                        if (!isDataBlockValid(startBytes, endBytes-size/2, filename)) {
+                            System.out.printf("Data sequence at position %d reported size: %d block data: %02X %02X %02X %02X is %s %n",
+                                    startBytes, size, buffer[i + 4], buffer[i + 5], buffer[i + 6], buffer[i + 7],
+                                    isDataBlockValid(startBytes, endBytes, filename));
                             continue;
                         }
 
                         // capture the data block and then save it to disk
                         System.out.printf("Data sequence found! Start: %d, End: %d, Size: %d %n", startBytes, endBytes, size);
                         byte[] dataBlock = readBytesFromRange(filename, startBytes, endBytes);
-                        byte[] cleanStream = SplitZoomM3.getBytesChunked(dataBlock, StartAt.RAW);
-                        byte[] output = RiffFile.createRiffFile(48000, (short) 32, (short) 2, cleanStream);
-                        Files.write(Paths.get(String.format("from_iso_%03d.wav", current_created_file++)), output);
+                        for (StartAt startAt : StartAt.values()) {
+                            byte[] cleanStream = SplitZoomM3.getBytesChunked(dataBlock, startAt);
+                            byte[] output = RiffFile.createRiffFile(48000, (short) 32, (short) 2, cleanStream);
+                            Files.write(Paths.get(String.format("from_iso_%03d_%s.wav", current_created_file, startAt)), output);
+                        }
+                        current_created_file++;
                     }
                 }
 
                 // first data offset should be 34340856
                 // first found data offset is   4292607
                 totalBytesRead += buffer.length;
-                if (totalBytesRead % (BUFFER_SIZE * 1000000L) == 0) {
-                    System.out.println("Read " + totalBytesRead / 1024 / 1024 + " gigabytes");
+                if (totalBytesRead % (BUFFER_SIZE * 10000L) == 0) {
+                    System.out.println("Read " + totalBytesRead / 1024 / 1024 / 1024 + " gigabytes");
                 }
             }
         }
@@ -129,16 +137,27 @@ public class ReadFromIso {
      * @throws IOException if there is an error reading the file
      */
     static byte[] readBytesFromRange(String filename, long start, long end) throws IOException {
+        // todo we must write this file to a tmp disk file, split and then delete
         Path path = Paths.get(filename);
-        int length = (int) (end - start);
-        byte[] buffer = new byte[length];
+        long length = end - start;
+        int bufferSize = 8192; // 8 KB buffer size
+        byte[] buffer = new byte[bufferSize];
 
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(path.toFile()))) {
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(path.toFile()));
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             bis.skip(start);
-            bis.read(buffer, 0, length);
+            long bytesReadTotal = 0;
+            while (bytesReadTotal < length) {
+                int bytesToRead = (int) Math.min(bufferSize, length - bytesReadTotal);
+                int bytesRead = bis.read(buffer, 0, bytesToRead);
+                if (bytesRead == -1) {
+                    break;
+                }
+                baos.write(buffer, 0, bytesRead);
+                bytesReadTotal += bytesRead;
+            }
+            return baos.toByteArray();
         }
-
-        return buffer;
     }
 
 
