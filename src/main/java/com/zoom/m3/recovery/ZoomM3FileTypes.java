@@ -1,5 +1,5 @@
 package com.zoom.m3.recovery;
 
-enum StartAt {
+public enum ZoomM3FileTypes {
     RAW, WAV
 }

@@ -8,7 +8,17 @@ import java.nio.ByteOrder;
 
 public class RiffFile {
 
-    public static byte[] createRiffFile(int sampleRate, short bitsPerSample, short channels, byte[] audioData) throws IOException {
+    /**
+     * Creates a RIFF header with BEXT and fmt chunks
+     *
+     * @param sampleRate    the sample rate of the audio (8000Hz, 44100Hz, 48000Hz, etc) times per second the audio is sampled
+     * @param bitsPerSample the bits per sample (8bits, 16bits, 32bits, etc)
+     * @param channels      the number of channels (1 mono, 2 stereo, etc)
+     * @param audioDataSize the size of the audio data in bytes
+     * @return the RIFF header
+     * @throws IOException if an I/O error occurs
+     */
+    public static byte[] createRiffHeader(int sampleRate, short bitsPerSample, short channels, int audioDataSize) throws IOException {
         // calculate the byte rate, block align and file size
         int byteRate = sampleRate * channels * bitsPerSample / 8;
         short blockAlign = (short) (bitsPerSample * channels / 8);
@@ -37,8 +47,7 @@ public class RiffFile {
 
         // data chunk
         out.writeBytes("data");                             // 37-40 chunkID ID is "data"
-        out.writeInt(Integer.reverseBytes(audioData.length));  // 41-44 size of this chunk varies
-        out.write(audioData);
+        out.writeInt(Integer.reverseBytes(audioDataSize));  // 41-44 size of this chunk varies
         out.close();
 
         // write the full size of the file on the 4-8 bytes
@@ -70,10 +79,8 @@ public class RiffFile {
         out.writeFloat(0.0f);                          // 4 bytes max momentary loudness
         out.writeFloat(0.0f);                          // 4 bytes max short term loudness
 
-//        out.write(new byte[180]);                         // 180 bytes reserved for extension
+        // zoom m3 needs this bit to allow file to be read from "zoom m3 edit & play"
         writeToArray(out, 180, "A=PCM,F=48000,W=32,M=stereo,T=M3;VERSION=1.00;MSRAW=ON ;");
-
-
     }
 
     private static void writeToArray(DataOutputStream out, int arrSize, String str) throws IOException {
