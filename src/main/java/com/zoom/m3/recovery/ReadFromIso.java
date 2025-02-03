@@ -1,5 +1,7 @@
 package com.zoom.m3.recovery;
 
+import picocli.CommandLine;
+
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -7,17 +9,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class ReadFromIso {
+/**
+ * Entry class. You should pass as a parameter an img of the card
+ * ie: c:\my_card.img
+ */
+public class ReadFromIso implements Runnable {
+
+    @CommandLine.Option(names = {"-f", "--file"}, description = "The path to the ISO file", required = true)
+    private String isoFilename;
 
     public static void main(String[] args) throws IOException {
-        System.out.println("ReadFromIso main");
-        String isoFilename = "f:\\68_pierre_zago.img";
-        if (Files.exists(Paths.get(isoFilename))) {
-            System.out.println("File exists");
-            openFileNameAndSearchForDataStrings(isoFilename);
-        } else {
-            System.out.println("File does not exist");
-        }
+        int exitCode = new CommandLine(new ReadFromIso()).execute(args);
+        System.exit(exitCode);
     }
 
     static void openFileNameAndSearchForDataStrings(String filename) throws IOException {
@@ -84,4 +87,16 @@ public class ReadFromIso {
         }
     }
 
+    @Override
+    public void run() {
+        if (Files.exists(Paths.get(isoFilename))) {
+            try {
+                openFileNameAndSearchForDataStrings(isoFilename);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            System.out.printf("Tried to read from %s which does not exist%n", isoFilename);
+        }
+    }
 }
