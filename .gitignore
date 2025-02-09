@@ -5,6 +5,7 @@ target/
 
 *.wav
 .idea
+.exe
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
