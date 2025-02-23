@@ -5,7 +5,7 @@ This is a data recovery carving tool for the Zoom M3 MicTrak audio recorder.
 ### When will this be used?
 
 The most typical scenario would be that you have accidentally formated your SD card and then wrote
-new data wiping out the Main Boot Region, the Backup Boot Region and the FAT region.
+new data wiping out the Boot / FAT regions.
 
 ### How does it work?
 
