@@ -2,6 +2,9 @@
 
 This is a data recovery carving tool for the Zoom M3 MicTrak audio recorder.
 
+You can read on how this tool came to be here:  
+https://wasteofserver.com/zoom-m3-mictrak-file-recovery/
+
 ### When will this be used?
 
 The most typical scenario would be that you have accidentally formated your SD card and then wrote
